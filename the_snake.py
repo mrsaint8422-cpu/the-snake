@@ -191,7 +191,7 @@ class Snake(GameObject):
                 return 'loss'
 
         self.last = self.positions.pop()
-        return "moved"
+        return 'moved'
 
     def draw(self):
         """Отрисовывает змейку на экране, затирая след."""
