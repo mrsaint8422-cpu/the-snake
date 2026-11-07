@@ -231,7 +231,7 @@ def main():
             amanita.draw()
             snake.draw()
             result_text = result_font.render(
-                f"Игра окончена! Счёт: {snake.length - 1}", True, (0, 0, 0)
+                f'Игра окончена! Счёт: {snake.length - 1}', True, (0, 0, 0)
             )
             text_rect = result_text.get_rect(center=(
                 SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
@@ -263,7 +263,7 @@ def main():
         apple.draw()
         amanita.draw()
         snake.draw()
-        score_text = font.render(f"Очки: {snake.length - 1}", True, (0, 0, 0))
+        score_text = font.render(f'Очки: {snake.length - 1}', True, (0, 0, 0))
         screen.blit(score_text, (10, 10))
 
         clock.tick(SPEED)
