@@ -76,10 +76,7 @@ class GameObject:
         self.body_color = body_color
 
     def draw(self):
-        """Предназначен для переопределения в дочерних классах."""
-
-    def draw_food_cell(self):
-        """Отрисовывает объект еды в одну ячейку на игровой поверхности."""
+        """Отрисовывает объекты на игровой поверхности."""
         rect = pygame.Rect(self.position, (GRID_SIZE, GRID_SIZE))
         pygame.draw.rect(screen, self.body_color, rect)
         pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
@@ -106,9 +103,9 @@ class Apple(GameObject):
         """Возвращает случайную позицию яблока."""
         self.position = self.randomize_free_position(occupied)
 
-    def draw_food_cell(self):
+    def draw(self):
         """Отрисовывает яблоко на игровой поверхности."""
-        super().draw_food_cell()
+        super().draw()
 
 
 class Amanita(GameObject):
@@ -122,9 +119,9 @@ class Amanita(GameObject):
         """Возвращает случайную позицию мухомора."""
         self.position = self.randomize_free_position(occupied)
 
-    def draw_food_cell(self):
+    def draw(self):
         """Отрисовывает мухомор на игровой поверхности."""
-        super().draw_food_cell()
+        super().draw()
         dot_size = GRID_SIZE // 6
         cell_x, cell_y = self.position
 
@@ -148,11 +145,10 @@ class Snake(GameObject):
     def __init__(self):
         super().__init__(position=GRID_CENTER, body_color=SNAKE_COLOR)
         self.reset()
-        self.direction = RIGHT  # Фиксируем стартовое направление
+        self.direction = RIGHT
 
     def update_direction(self):
         """Обновляет направление (заглушка для прохождения тестов)."""
-        pass
 
     def clear_center(self, apple, amanita):
         """Убирает еду из клетки возрождения змейки."""
@@ -161,8 +157,8 @@ class Snake(GameObject):
         if amanita.position == GRID_CENTER:
             amanita.randomize_position(occupied=[apple.position])
 
-    def move(self, apple, amanita, new_direction=None):
-        """Двигает змейку и возвращает результат взаимодействия."""
+    def move(self, new_direction=None):
+        """Двигает голову змейки и возвращает новую позицию."""
         if new_direction:
             self.direction = new_direction
 
@@ -174,31 +170,10 @@ class Snake(GameObject):
 
         self.positions.insert(0, new_head)
 
-        if new_head in self.positions[1:]:
-            return 'loss'
-
-        if new_head == apple.position:
-            self.length += 1
-            return 'apple'
-        if new_head == amanita.position:
-            if self.length > 1:
-                self.positions.pop()
-                # Удаляем повторно для отрисовки убавления хвоста
-                self.positions.pop()
-                self.length -= 1
-                return 'amanita'
-            else:
-                return 'loss'
-
-        self.last = self.positions.pop()
-        return 'moved'
+        return new_head
 
     def draw(self):
         """Отрисовывает змейку на экране, затирая след."""
-        if self.last:
-            last_rect = pygame.Rect(self.last, (GRID_SIZE, GRID_SIZE))
-            pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, last_rect)
-
         for position in self.positions:
             head_rect = pygame.Rect(position, (GRID_SIZE, GRID_SIZE))
             pygame.draw.rect(screen, self.body_color, head_rect)
@@ -214,7 +189,6 @@ class Snake(GameObject):
         self.position = GRID_CENTER
         self.positions = [GRID_CENTER]
         self.direction = choice(DIRECTIONS)
-        self.last = None
 
 
 def handle_keys(game_object):
@@ -226,8 +200,7 @@ def handle_keys(game_object):
             raise SystemExit
         elif event.type == pygame.KEYDOWN:
             key_direction = (event.key, game_object.direction)
-            if key_direction in KEY_DIRECTION:
-                new_dir = KEY_DIRECTION[key_direction]
+            new_dir = KEY_DIRECTION.get(key_direction)
     return new_dir
 
 
@@ -243,27 +216,55 @@ def main():
     amanita = Amanita()
     amanita.randomize_position(occupied=[apple.position])
     snake = Snake()
+    font = pygame.font.SysFont(None, 30)
+    result_font = pygame.font.SysFont(None, 50)
 
     while True:
         new_dir = handle_keys(snake)
-        result = snake.move(apple, amanita, new_direction=new_dir)
+        new_head = snake.move(new_direction=new_dir)
 
-        if result == 'loss':
+        if new_head in snake.positions[1:] or (
+            new_head == amanita.position and snake.length <= 1
+        ):
+            screen.fill(BOARD_BACKGROUND_COLOR)
+            apple.draw()
+            amanita.draw()
+            snake.draw()
+            result_text = result_font.render(
+                f"Игра окончена! Счёт: {snake.length - 1}", True, (0, 0, 0)
+            )
+            text_rect = result_text.get_rect(center=(
+                SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            screen.blit(result_text, text_rect)
+            pygame.display.update()
+            pygame.time.wait(3000)
             snake.reset()
             snake.clear_center(apple, amanita)
-        elif result == 'apple':
-            apple.randomize_position(
-                occupied=[amanita.position, *snake.positions]
-            )
-        elif result == 'amanita':
+            continue
+
+        elif new_head == amanita.position:
+            snake.length -= 1
+            snake.positions.pop()
+            snake.positions.pop()
             amanita.randomize_position(
                 occupied=[apple.position, *snake.positions]
             )
 
+        elif new_head == apple.position:
+            snake.length += 1
+            apple.randomize_position(
+                occupied=[amanita.position, *snake.positions]
+            )
+
+        else:
+            snake.positions.pop()
+
         screen.fill(BOARD_BACKGROUND_COLOR)
-        apple.draw_food_cell()
-        amanita.draw_food_cell()
+        apple.draw()
+        amanita.draw()
         snake.draw()
+        score_text = font.render(f"Очки: {snake.length - 1}", True, (0, 0, 0))
+        screen.blit(score_text, (10, 10))
 
         clock.tick(SPEED)
         pygame.display.update()
